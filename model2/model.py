@@ -12,6 +12,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data as tordata
 from tensorboardX import SummaryWriter
+from visdom import Visdom
 
 from .network import TripletLoss, SetNet
 from .utils import TripletSampler
@@ -30,16 +31,18 @@ class Model:
                  save_name,
                  train_pid_num,
                  frame_num,
-                 model_name,
+                 model_name: str,
                  train_source,
                  test_source,
                  img_size=64,
-                 logdir="./log"):
+                 logdir="./log",
+                 model_save_dir="GaitSet"):
 
         self.save_name = save_name
         self.train_pid_num = train_pid_num
         self.train_source = train_source
         self.test_source = test_source
+        self.model_save_dir = model_save_dir
 
         self.hidden_dim = hidden_dim
         self.lr = lr
@@ -168,6 +171,7 @@ class Model:
     def fit(self):
         torch.backends.cudnn.benchmark = True
         writer = SummaryWriter(self.logdir)
+        vis = Visdom(env="hard_full_loss", log_to_filename=osp.join(self.logdir, "hard_full_loss.log"))
         if self.restore_iter != 0:
             self.load(self.restore_iter)
 
@@ -217,11 +221,13 @@ class Model:
             triplet_label = target_label.unsqueeze(0).repeat(triplet_feature.size(0), 1)
             (full_loss_metric, hard_loss_metric, mean_dist, full_loss_num
              ) = self.triplet_loss(triplet_feature, triplet_label)
+            loss = 0
             if self.hard_or_full_trip == 'hard':
                 loss = hard_loss_metric.mean()
             elif self.hard_or_full_trip == 'full':
                 loss = full_loss_metric.mean()
-
+            # todo 增加了loss的值
+            loss += hard_loss_metric.mean()
             self.hard_loss_metric.append(hard_loss_metric.mean().data.cpu().numpy())
             self.full_loss_metric.append(full_loss_metric.mean().data.cpu().numpy())
             self.full_loss_num.append(full_loss_num.mean().data.cpu().numpy())
@@ -239,19 +245,40 @@ class Model:
                 print('iter {}:'.format(self.restore_iter), end='')
                 print(', hard_loss_metric={0:.8f}'.format(np.mean(self.hard_loss_metric)), end='')
                 writer.add_scalar("hard_loss_metric", np.mean(self.hard_loss_metric), self.restore_iter)
+                vis.line(X=np.array([self.restore_iter]), Y=np.array([np.mean(self.hard_loss_metric)]),
+                         win="hard_loss_metric",
+                         update="append",
+                         opts=dict(title="hard_loss_metric"))
 
                 print(', full_loss_metric={0:.8f}'.format(np.mean(self.full_loss_metric)), end='')
                 writer.add_scalar("full_loss_metric", np.mean(self.full_loss_metric), self.restore_iter)
+                vis.line(X=np.array([self.restore_iter]), Y=np.array([np.mean(self.full_loss_metric)]),
+                         win="full_loss_metric",
+                         update="append",
+                         opts=dict(title="full_loss_metric"))
 
                 print(', full_loss_num={0:.8f}'.format(np.mean(self.full_loss_num)), end='')
                 writer.add_scalar("full_loss_num", np.mean(self.full_loss_num), self.restore_iter)
+                vis.line(X=np.array([self.restore_iter]), Y=np.array([np.mean(self.full_loss_num)]),
+                         win="full_loss_num",
+                         update="append",
+                         opts=dict(title="full_loss_num"))
 
                 self.mean_dist = np.mean(self.dist_list)
                 print(', mean_dist={0:.8f}'.format(self.mean_dist), end='')
                 writer.add_scalar("mean_dist", self.mean_dist, self.restore_iter)
+                vis.line(X=np.array([self.restore_iter]), Y=np.array([self.mean_dist]), win="mean_dist",
+                         update="append",
+                         opts=dict(title="mean_dist"))
 
                 print(', lr=%f' % self.optimizer.param_groups[0]['lr'], end='')
                 writer.add_scalar("lr", self.optimizer.param_groups[0]['lr'], self.restore_iter)
+                vis.line(X=np.array([self.restore_iter]), Y=np.array([self.optimizer.param_groups[0]['lr']]), win="lr",
+                         update="append",
+                         opts=dict(title="lr"))
+                vis.line(X=np.array([self.restore_iter]), Y=np.array([loss.data.cpu().numpy()]), win="all_loss",
+                         update="append",
+                         opts=dict(title="all_loss"))
                 print(', hard or full=%r' % self.hard_or_full_trip)
                 sys.stdout.flush()
                 self.hard_loss_metric = []
@@ -273,8 +300,6 @@ class Model:
 
             if self.restore_iter == self.total_iter:
                 break
-            del loss
-            torch.cuda.empty_cache()
 
     def ts2var(self, x):
         # TODO 这里修改了不让数据到GPU上
@@ -285,47 +310,48 @@ class Model:
         return self.ts2var(torch.from_numpy(x))
 
     def transform(self, flag, batch_size=1):
-        self.encoder.eval()
-        source = self.test_source if flag == 'test' else self.train_source
-        self.sample_type = 'all'
-        data_loader = tordata.DataLoader(
-            dataset=source,
-            batch_size=batch_size,
-            sampler=tordata.sampler.SequentialSampler(source),
-            collate_fn=self.collate_fn,
-            num_workers=self.num_workers)
+        with torch.no_grad():
+            self.encoder.eval()
+            source = self.test_source if flag == 'test' else self.train_source
+            self.sample_type = 'all'
+            data_loader = tordata.DataLoader(
+                dataset=source,
+                batch_size=batch_size,
+                sampler=tordata.sampler.SequentialSampler(source),
+                collate_fn=self.collate_fn,
+                num_workers=self.num_workers)
 
-        feature_list = list()
-        view_list = list()
-        seq_type_list = list()
-        label_list = list()
+            feature_list = list()
+            view_list = list()
+            seq_type_list = list()
+            label_list = list()
 
-        for i, x in enumerate(data_loader):
-            seq, view, seq_type, label, batch_frame = x
-            for j in range(len(seq)):
-                seq[j] = self.np2var(seq[j]).float()
-            if batch_frame is not None:
-                batch_frame = self.np2var(batch_frame).int()
-            # print(batch_frame, np.sum(batch_frame))
+            for i, x in enumerate(data_loader):
+                seq, view, seq_type, label, batch_frame = x
+                for j in range(len(seq)):
+                    seq[j] = self.np2var(seq[j]).float()
+                if batch_frame is not None:
+                    batch_frame = self.np2var(batch_frame).int()
+                # print(batch_frame, np.sum(batch_frame))
 
-            feature, _ = self.encoder(*seq, batch_frame)
-            n, num_bin, _ = feature.size()
-            feature_list.append(feature.view(n, -1).data.cpu().numpy())
-            view_list += view
-            seq_type_list += seq_type
-            label_list += label
-            # feature_list中每个元素的形状为：128*（62X256)=128*15872
-            # 返回所有样本的特征向量组成的数组，形状为：样本总数*15872
-        return np.concatenate(feature_list, 0), view_list, seq_type_list, label_list
+                feature, _ = self.encoder(*seq, batch_frame)
+                n, num_bin, _ = feature.size()
+                feature_list.append(feature.view(n, -1).data.cpu().numpy())
+                view_list += view
+                seq_type_list += seq_type
+                label_list += label
+                # feature_list中每个元素的形状为：128*（62X256)=128*15872
+                # 返回所有样本的特征向量组成的数组，形状为：样本总数*15872
+            return np.concatenate(feature_list, 0), view_list, seq_type_list, label_list
 
     def save(self):
-        os.makedirs(osp.join('checkpoint', self.model_name), exist_ok=True)
+        os.makedirs(osp.join('checkpoint', self.model_save_dir), exist_ok=True)
         torch.save(self.encoder.state_dict(),
-                   osp.join('checkpoint', self.model_name,
+                   osp.join('checkpoint', self.model_save_dir,
                             '{}-{:0>5}-encoder.ptm'.format(
                                 self.save_name, self.restore_iter)))
         torch.save(self.optimizer.state_dict(),
-                   osp.join('checkpoint', self.model_name,
+                   osp.join('checkpoint', self.model_save_dir,
                             '{}-{:0>5}-optimizer.ptm'.format(
                                 self.save_name, self.restore_iter)))
 
@@ -333,7 +359,7 @@ class Model:
     def load(self, restore_iter):
         self.encoder.load_state_dict(torch.load(osp.join(
             'checkpoint', self.model_name,
-            '{}-{:0>5}-encoder.ptm'.format(self.save_name, restore_iter))))
+            '{}-{:0>5}-encoder.ptm'.format(self.model_save_dir, restore_iter))))
         self.optimizer.load_state_dict(torch.load(osp.join(
-            'checkpoint', self.model_name,
+            'checkpoint', self.model_save_dir,
             '{}-{:0>5}-optimizer.ptm'.format(self.save_name, restore_iter))))

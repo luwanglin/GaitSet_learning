@@ -1,0 +1,7 @@
+{
+    "python.pythonPath": "/data/public/env/anaconda3/bin/python",
+    "python.autoComplete.extraPaths": [
+    "/data/public/env/anaconda3/bin/python"
+    ],
+    "python.analysis.memory.keepLibraryLocalVariables": true
+}

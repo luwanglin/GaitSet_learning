@@ -13,24 +13,24 @@ class SetNet(nn.Module):
 
         _set_in_channels = 1
         _set_channels = [32, 64, 128]
-        self.set_layer1 = SetBlock(BasicConv2d(_set_in_channels, _set_channels[0], 5, dy_relu=True, padding=2))
-        self.set_layer2 = SetBlock(BasicConv2d(_set_channels[0], _set_channels[0], 3, dy_relu=True, padding=1), True)
+        self.set_layer1 = SetBlock(BasicConv2d(_set_in_channels, _set_channels[0], 5, padding=2))
+        self.set_layer2 = SetBlock(BasicConv2d(_set_channels[0], _set_channels[0], 3, padding=1), True)
         # set_layer1.set_layer2 对应于c1,c2 P
-        self.set_layer3 = SetBlock(BasicConv2d(_set_channels[0], _set_channels[1], 3, dy_relu=True, padding=1))
-        self.set_layer4 = SetBlock(BasicConv2d(_set_channels[1], _set_channels[1], 3, dy_relu=True, padding=1), True)
+        self.set_layer3 = SetBlock(BasicConv2d(_set_channels[0], _set_channels[1], 3, padding=1))
+        self.set_layer4 = SetBlock(BasicConv2d(_set_channels[1], _set_channels[1], 3, padding=1), True)
         # set_layer3.set_layer4 对应于c3,c4 P
-        self.set_layer5 = SetBlock(BasicConv2d(_set_channels[1], _set_channels[2], 3, dy_relu=True, padding=1))
-        self.set_layer6 = SetBlock(BasicConv2d(_set_channels[2], _set_channels[2], 3, dy_relu=True, padding=1))
+        self.set_layer5 = SetBlock(BasicConv2d(_set_channels[1], _set_channels[2], 3, padding=1))
+        self.set_layer6 = SetBlock(BasicConv2d(_set_channels[2], _set_channels[2], 3, padding=1))
         # set_layer4.set_layer5 对应于c5,c6 P
 
         _gl_in_channels = 32
         _gl_channels = [64, 128]
         # 和上面的结构相同，两个3*3卷积加上池化层
-        self.gl_layer1 = BasicConv2d(_gl_in_channels, _gl_channels[0], 3, dy_relu=True, padding=1)
-        self.gl_layer2 = BasicConv2d(_gl_channels[0], _gl_channels[0], 3, dy_relu=True, padding=1)
+        self.gl_layer1 = BasicConv2d(_gl_in_channels, _gl_channels[0], 3, padding=1)
+        self.gl_layer2 = BasicConv2d(_gl_channels[0], _gl_channels[0], 3, padding=1)
         # 这里也是一样
-        self.gl_layer3 = BasicConv2d(_gl_channels[0], _gl_channels[1], 3, dy_relu=True, padding=1)
-        self.gl_layer4 = BasicConv2d(_gl_channels[1], _gl_channels[1], 3, dy_relu=True, padding=1)
+        self.gl_layer3 = BasicConv2d(_gl_channels[0], _gl_channels[1], 3, padding=1)
+        self.gl_layer4 = BasicConv2d(_gl_channels[1], _gl_channels[1], 3, padding=1)
         self.gl_pooling = nn.MaxPool2d(2)
 
         self.bin_num = [1, 2, 4, 8, 16]  # 论文中的五个尺度在HPM中的

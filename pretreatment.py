@@ -2,16 +2,15 @@
 # @Author  : Abner
 # @Time    : 2018/12/19
 
-import os
-from scipy import misc as scisc
-import cv2
-import numpy as np
-from warnings import warn
-from time import sleep
 import argparse
-
+import os
 from multiprocessing import Pool
 from multiprocessing import TimeoutError as MP_TimeoutError
+from time import sleep
+from warnings import warn
+
+import cv2
+import numpy as np
 
 START = "START"
 FINISH = "FINISH"
@@ -132,7 +131,7 @@ def cut_pickle(seq_info, pid):
         if img is not None:
             # Save the cut img
             save_path = os.path.join(out_dir, _frame_name)
-            scisc.imsave(save_path, img)
+            cv2.imwrite(save_path, img)
             count_frame += 1
     # Warn if the sequence contains less than 5 frames
     if count_frame < 5:
@@ -169,7 +168,8 @@ for _id in id_list:
         for _view in view:
             seq_info = [_id, _seq_type, _view]
             out_dir = os.path.join(OUTPUT_PATH, *seq_info)
-            os.makedirs(out_dir)
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
             results.append(
                 pool.apply_async(
                     cut_pickle,
