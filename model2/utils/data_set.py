@@ -41,6 +41,7 @@ class DataSet(tordata.Dataset):
             _view = self.view[i]
             self.index_dict.loc[_label, _seq_type, _view] = i
             # 将所有的样本的下标信息(在self.label，self.seq_type，self.view中的下标信息进行保存)进行保存
+            # 比如012/bg-02/090（第12个人bg-02条件下的90°视角下的轮廓序列）对应的样本下标信息为i
 
     def load_all_data(self):
         for i in range(self.data_size):
