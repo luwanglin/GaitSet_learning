@@ -23,8 +23,8 @@ if __name__ == '__main__':
     acc_array_exclude = numpy.array([[87.61818181818184, 78.15718181818183, 64.21818181818182],
                                      [87.55454545454546, 78.20354545454546, 64.36363636363637]])
     iter_list = [88800, 88900]
-    # numpy.savetxt("work/log/visdom/acc.txt", acc_array_exclude)
-    # numpy.savetxt("work/log/visdom/iter_list.txt", iter_list)
+    numpy.savetxt("work/log/test/visdom/acc.txt", acc_array_exclude)
+    numpy.savetxt("work/log/test/visdom/iter_list.txt", iter_list)
     vis.bar(X=acc_array_exclude,
             opts=dict(
                 stacked=False,
@@ -44,4 +44,4 @@ if __name__ == '__main__':
                 ylabel='rank-1 accuracy',  # y轴名称
                 xtickmin=0.4,  # x轴左端点起始位置
                 # xtickstep=0.4  # 每个柱形间隔距离
-            ), win="acc_array_exclude",)
+            ), win="acc_array_exclude", )

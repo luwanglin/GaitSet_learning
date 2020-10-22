@@ -15,18 +15,18 @@ conf = {
     },
     "model": {
         'hidden_dim': 256,
-        'lr': 1e-5,
+        'lr': 1e-4,
         'hard_or_full_trip': 'full',
         # TODO 注意这里修改了batchsize的的大小
         'batch_size': (8, 16),
         # TODO 注意这里修改了接着训练的轮数
-        'restore_iter': 100000,
-        'total_iter': 200000,
+        'restore_iter': 0,
+        'total_iter': 80000,
         'margin': 0.2,
         'num_workers': 8,
         'frame_num': 30,
-        'model_name': 'GaitSet_hard_full_loss',
-        'model_save_dir': "GaitSet/hard_full_loss",
-        'logdir': './log/visdom/hard_full_loss'
+        'model_name': 'GaitSet_full_loss',
+        'model_save_dir': "GaitSet/full_loss",
+        'logdir': './log/visdom/full_loss'
     },
 }

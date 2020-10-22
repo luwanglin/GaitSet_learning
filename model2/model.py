@@ -171,7 +171,8 @@ class Model:
     def fit(self):
         torch.backends.cudnn.benchmark = True
         writer = SummaryWriter(self.logdir)
-        vis = Visdom(env="hard_full_loss", log_to_filename=osp.join(self.logdir, "hard_full_loss.log"))
+        env_name = self.hard_or_full_trip
+        vis = Visdom(env=env_name, log_to_filename=osp.join(self.logdir, self.hard_or_full_trip + ".log"))
         if self.restore_iter != 0:
             self.load(self.restore_iter)
 
@@ -226,8 +227,10 @@ class Model:
                 loss = hard_loss_metric.mean()
             elif self.hard_or_full_trip == 'full':
                 loss = full_loss_metric.mean()
-            # todo 增加了loss的值
-            loss += hard_loss_metric.mean()
+            else:
+                # todo 增加了loss的值
+                loss = hard_loss_metric.mean() + full_loss_metric.mean()
+
             self.hard_loss_metric.append(hard_loss_metric.mean().data.cpu().numpy())
             self.full_loss_metric.append(full_loss_metric.mean().data.cpu().numpy())
             self.full_loss_num.append(full_loss_num.mean().data.cpu().numpy())
@@ -285,7 +288,7 @@ class Model:
                 self.full_loss_metric = []
                 self.full_loss_num = []
                 self.dist_list = []
-            if self.restore_iter % 100 == 0:
+            if self.restore_iter % 500 == 0:
                 self.save()
 
             # Visualization using t-SNE
@@ -299,6 +302,7 @@ class Model:
             #     plt.show()
 
             if self.restore_iter == self.total_iter:
+                vis.save([env_name])
                 break
 
     def ts2var(self, x):
@@ -358,8 +362,8 @@ class Model:
     # restore_iter: iteration index of the checkpoint to load
     def load(self, restore_iter):
         self.encoder.load_state_dict(torch.load(osp.join(
-            'checkpoint', self.model_name,
-            '{}-{:0>5}-encoder.ptm'.format(self.model_save_dir, restore_iter))))
+            'checkpoint', self.model_save_dir,
+            '{}-{:0>5}-encoder.ptm'.format(self.save_name, restore_iter))))
         self.optimizer.load_state_dict(torch.load(osp.join(
             'checkpoint', self.model_save_dir,
             '{}-{:0>5}-optimizer.ptm'.format(self.save_name, restore_iter))))

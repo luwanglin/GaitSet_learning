@@ -7,7 +7,7 @@ sys.path.append(r"/data/lwl/Gait_experiment/GaitSet")
 # sys.path.append(r"/data/lwl/Gait_experiment/GaitSet/model")
 import numpy as np
 # from config.config_v2 import conf
-from config.config_v2 import conf
+from config.config_hard_full_loss import conf
 from visdom import Visdom
 from model2.initialization import initialization
 from model2.utils import evaluation
@@ -39,6 +39,7 @@ def de_diag(acc, each_angle=False):
 
 
 if __name__ == '__main__':
+    log_test_dir = "./log/test/visdom/hard_full_loss"
     m = initialization(conf, test=opt.cache)[0]
     """print(os.listdir(os.path.join(conf['WORK_PATH'], "checkpoint",
                                   conf["model"]["model_name"]))[-1].split("-")[-2])
@@ -52,17 +53,17 @@ if __name__ == '__main__':
     # 找出所有保存的模型的对应的代数,记得去重(因为和之前的128batchsize大小的重复了，那个没有采用dy-relu)
     iter_list = sorted(list(set(map(lambda a: int(a.split("-")[-2]),
                                     os.listdir(os.path.join("checkpoint",
-                                                            conf["model"]["model_name"]))))))
+                                                            conf["model"]["model_save_dir"]))))))
     # writer = SummaryWriter(log_dir="./log/all_test_acc_log")
 
     # visdom可视化
-    vis = Visdom(env="GaitSet_test", log_to_filename="./log/visdom/test_all_acc.log")
+    vis = Visdom(env="GaitSet_test", log_to_filename=os.path.join(log_test_dir, "test_all_acc.log"))
 
     # load model checkpoint of iteration opt.iter
     acc_array_include = []
     acc_array_exclude = []
     # 只取出大于60000的进行测试
-    iter_list = list(filter(lambda x: x > 70000, iter_list))
+    iter_list = list(filter(lambda x: x > 100000, iter_list))
     for iter_s in iter_list:
         if iter_s % 100 == 0:
             print(iter_s)
@@ -114,15 +115,15 @@ if __name__ == '__main__':
     print("这是acc数组：", acc_array_exclude)
     print("这是rownames：", iter_list)
     # 保存数据
-    np.savetxt("./log/visdom/acc_array_exclude.txt", np.array(acc_array_exclude))
-    np.savetxt("./log/visdom/acc_array_include.txt", np.array(acc_array_include))
-    np.savetxt("./log/visdom/iter_list.txt", iter_list)
+    np.savetxt(os.path.join(log_test_dir, "acc_array_exclude.txt"), np.array(acc_array_exclude))
+    np.savetxt(os.path.join(log_test_dir, "acc_array_include.txt"), np.array(acc_array_include))
+    np.savetxt(os.path.join(log_test_dir, "iter_list.txt"), iter_list)
     vis.bar(X=acc_array_exclude,
             opts=dict(
                 stacked=False,
                 legend=['NM', 'BG', 'CL'],
                 rownames=iter_list,
-                title='Test_acc',
+                title='acc_array_exclude',
                 ylabel='rank-1 accuracy',  # y轴名称
                 xtickmin=0.4  # x轴左端点起始位置
                 # xtickstep=0.4  # 每个柱形间隔距离
@@ -132,7 +133,7 @@ if __name__ == '__main__':
                 stacked=False,
                 legend=['NM', 'BG', 'CL'],
                 rownames=iter_list,
-                title='Test_acc',
+                title='acc_array_include',
                 ylabel='rank-1 accuracy',  # y轴名称
                 xtickmin=0.4  # x轴左端点起始位置
                 # xtickstep=0.4  # 每个柱形间隔距离
